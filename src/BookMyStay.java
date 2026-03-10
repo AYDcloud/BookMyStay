@@ -1,4 +1,6 @@
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Queue;
 
 abstract class Room {
 
@@ -81,6 +83,51 @@ class SearchService {
     }
 }
 
+class Reservation {
+
+    private String guestName;
+    private String roomType;
+
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+    }
+
+    public String getGuestName() {
+        return guestName;
+    }
+
+    public String getRoomType() {
+        return roomType;
+    }
+
+    public void displayRequest() {
+        System.out.println("Reservation Request - Guest: " + guestName + ", Room: " + roomType);
+    }
+}
+
+class BookingRequestQueue {
+
+    private Queue<Reservation> queue;
+
+    public BookingRequestQueue() {
+        queue = new LinkedList<>();
+    }
+
+    public void addRequest(Reservation reservation) {
+        queue.add(reservation);
+        System.out.println("Request added for " + reservation.getGuestName());
+    }
+
+    public void displayQueue() {
+        System.out.println("\nCurrent Booking Queue\n");
+
+        for (Reservation r : queue) {
+            r.displayRequest();
+        }
+    }
+}
+
 public class BookMyStay {
 
     public static void main(String[] args) {
@@ -92,9 +139,20 @@ public class BookMyStay {
         Room[] rooms = {single, doubleRoom, suite};
 
         RoomInventory inventory = new RoomInventory();
-
         SearchService searchService = new SearchService(inventory);
 
         searchService.searchRooms(rooms);
+
+        BookingRequestQueue requestQueue = new BookingRequestQueue();
+
+        Reservation r1 = new Reservation("Alice", "Single Room");
+        Reservation r2 = new Reservation("Bob", "Double Room");
+        Reservation r3 = new Reservation("Charlie", "Single Room");
+
+        requestQueue.addRequest(r1);
+        requestQueue.addRequest(r2);
+        requestQueue.addRequest(r3);
+
+        requestQueue.displayQueue();
     }
 }
