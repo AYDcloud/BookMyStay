@@ -2,127 +2,98 @@ import java.util.*;
 
 abstract class Room {
     protected String type;
-    protected int beds;
-    protected double price;
 
-    public Room(String type, int beds, double price) {
+    public Room(String type) {
         this.type = type;
-        this.beds = beds;
-        this.price = price;
     }
 
     public String getType() { return type; }
 }
 
 class SingleRoom extends Room {
-    public SingleRoom() { super("Single Room", 1, 100); }
+    public SingleRoom() { super("Single Room"); }
 }
 
 class DoubleRoom extends Room {
-    public DoubleRoom() { super("Double Room", 2, 180); }
+    public DoubleRoom() { super("Double Room"); }
 }
 
 class SuiteRoom extends Room {
-    public SuiteRoom() { super("Suite Room", 3, 350); }
+    public SuiteRoom() { super("Suite Room"); }
+}
+
+class InvalidBookingException extends Exception {
+    public InvalidBookingException(String message) {
+        super(message);
+    }
 }
 
 class RoomInventory {
-    private HashMap<String, Integer> availability = new HashMap<>();
+    private Map<String, Integer> availability = new HashMap<>();
 
     public RoomInventory() {
-        availability.put("Single Room", 2);
-        availability.put("Double Room", 2);
-        availability.put("Suite Room", 1);
+        availability.put("Single Room", 1);
+        availability.put("Double Room", 1);
+        availability.put("Suite Room", 0);
     }
 
     public int getAvailability(String type) {
-        return availability.getOrDefault(type, 0);
+        return availability.getOrDefault(type, -1);
     }
 
-    public void decrement(String type) {
-        availability.put(type, availability.get(type) - 1);
+    public void decrement(String type) throws InvalidBookingException {
+        int count = availability.getOrDefault(type, -1);
+
+        if (count < 0)
+            throw new InvalidBookingException("Invalid room type: " + type);
+
+        if (count == 0)
+            throw new InvalidBookingException("No availability for " + type);
+
+        availability.put(type, count - 1);
     }
 }
 
 class Reservation {
-    private String reservationId;
-    private String guestName;
+    private String id;
+    private String guest;
     private String roomType;
 
-    public Reservation(String guestName, String roomType) {
-        this.guestName = guestName;
+    public Reservation(String guest, String roomType) {
+        this.id = UUID.randomUUID().toString().substring(0, 6);
+        this.guest = guest;
         this.roomType = roomType;
-        this.reservationId = UUID.randomUUID().toString().substring(0, 6);
     }
 
-    public String getReservationId() { return reservationId; }
-    public String getGuestName() { return guestName; }
+    public String getId() { return id; }
+    public String getGuest() { return guest; }
     public String getRoomType() { return roomType; }
-}
-
-class BookingHistory {
-    private List<Reservation> history = new ArrayList<>();
-
-    public void add(Reservation r) {
-        history.add(r);
-    }
-
-    public List<Reservation> getAll() {
-        return history;
-    }
-}
-
-class BookingReportService {
-
-    public void displayAll(List<Reservation> history) {
-        System.out.println("\nBooking History\n");
-        for (Reservation r : history) {
-            System.out.println(r.getReservationId() + " | " +
-                    r.getGuestName() + " | " + r.getRoomType());
-        }
-    }
-
-    public void summary(List<Reservation> history) {
-        Map<String, Integer> count = new HashMap<>();
-
-        for (Reservation r : history) {
-            count.put(r.getRoomType(),
-                    count.getOrDefault(r.getRoomType(), 0) + 1);
-        }
-
-        System.out.println("\nSummary Report\n");
-        for (String type : count.keySet()) {
-            System.out.println(type + " Bookings: " + count.get(type));
-        }
-    }
 }
 
 class BookingService {
 
     private RoomInventory inventory;
-    private BookingHistory history;
 
-    public BookingService(RoomInventory inventory, BookingHistory history) {
+    public BookingService(RoomInventory inventory) {
         this.inventory = inventory;
-        this.history = history;
     }
 
-    public Reservation book(String guest, String roomType) {
+    public void book(String guest, String roomType) {
 
-        if (inventory.getAvailability(roomType) <= 0) {
-            System.out.println("No rooms available for " + guest);
-            return null;
+        try {
+            if (roomType == null || roomType.isEmpty())
+                throw new InvalidBookingException("Room type cannot be empty");
+
+            inventory.decrement(roomType);
+
+            Reservation r = new Reservation(guest, roomType);
+
+            System.out.println("Booking Confirmed: " + guest +
+                    " -> " + roomType + " | ID: " + r.getId());
+
+        } catch (InvalidBookingException e) {
+            System.out.println("Booking Failed: " + e.getMessage());
         }
-
-        Reservation r = new Reservation(guest, roomType);
-
-        inventory.decrement(roomType);
-        history.add(r);
-
-        System.out.println("Booked: " + guest + " -> " + roomType +
-                " | ResID: " + r.getReservationId());
-
-        return r;
     }
 }
 
@@ -131,15 +102,11 @@ public class BookMyStay {
     public static void main(String[] args) {
 
         RoomInventory inventory = new RoomInventory();
-        BookingHistory history = new BookingHistory();
-        BookingService booking = new BookingService(inventory, history);
-        BookingReportService report = new BookingReportService();
+        BookingService booking = new BookingService(inventory);
 
-        booking.book("Alice", "Single Room");
-        booking.book("Bob", "Double Room");
-        booking.book("Charlie", "Single Room");
-
-        report.displayAll(history.getAll());
-        report.summary(history.getAll());
+        booking.book("Alice", "Single Room");   // valid
+        booking.book("Bob", "Suite Room");      // no availability
+        booking.book("Charlie", "Penthouse");   // invalid type
+        booking.book("David", "");              // invalid input
     }
 }
